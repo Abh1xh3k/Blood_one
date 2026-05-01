@@ -3,10 +3,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useWeb3 } from '../contexts/Web3Context';
 import { Search, ShieldCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const Landing = () => {
   const { login } = useAuth();
-  const { connectWallet, account, contract } = useWeb3();
+  const { connectWallet, account, contract, hashAadhaar } = useWeb3();
   const navigate = useNavigate();
 
   const [password, setPassword] = useState('');
@@ -18,147 +20,159 @@ const Landing = () => {
     e.preventDefault();
     const result = await login('admin@ledger.com', password);
     if (result.success) {
+      toast.success("Welcome, Admin");
       navigate('/admin');
     } else {
-      alert(result.message);
+      toast.error(result.message);
     }
   };
 
   const handleTrackBlood = async (e) => {
     e.preventDefault();
-    if (!contract) return alert("Please connect MetaMask first to fetch data from the Blockchain.");
+    if (!contract) return toast.error("Connect MetaMask first.");
     
     setIsSearching(true);
     setSearchResult(null);
+    const toastId = toast.loading("Querying Blockchain...");
 
     try {
-      // Direct Aadhaar Lookup! Triggers our newly mapped function behind the scenes.
-      const data = await contract.getBloodDetailsByAadhaar(searchAadhaar);
+      // Use hashing to find the packet
+      const hashedId = hashAadhaar(searchAadhaar);
+      const packet = await contract.getPacketByDonor(hashedId);
       
-      const [trackingId, group, location, organization, isUsed, timestampStr] = data;
+      const statusLabels = ["Active", "In Transit", "Consumed", "Discarded"];
       
       setSearchResult({
-        trackingId,
-        group,
-        location,
-        organization,
-        isUsed,
-        timestamp: new Date(Number(timestampStr) * 1000).toLocaleString()
+        trackingId: packet.trackingId,
+        group: packet.bloodGroup,
+        location: packet.location,
+        organization: packet.organization,
+        status: statusLabels[packet.status],
+        isUsed: packet.status === 2,
+        timestamp: new Date(Number(packet.timestamp) * 1000).toLocaleString()
       });
       
+      toast.success("Found!", { id: toastId });
     } catch (err) {
       console.error(err);
-      alert("Error: Data not found. No active blood packets registered for this Aadhaar ID.");
+      toast.error("No record found for this ID.", { id: toastId });
     } finally {
       setIsSearching(false);
     }
   };
 
   return (
-    <div className="container" style={{ paddingTop: '2rem' }}>
+    <div className="container" style={{ paddingTop: '2rem', overflowX: 'hidden' }}>
       <div className="bg-gradient-spot"></div>
       
       <div className="grid grid-cols-2 gap-8 items-center" style={{ minHeight: '60vh' }}>
-        <div className="animate-fade-in">
+        <motion.div 
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8 }}
+        >
           <Badge text="Blockchain Verified" icon={<ShieldCheck size={16} />} />
           <h1 className="mt-4 mb-4">
-            Decentralized <br/><span className="text-gradient-red">Blood Tracking</span> System
+            Decentralized <br/><span className="text-gradient-red">Blood Tracking</span>
           </h1>
           <p className="text-secondary mb-8" style={{ fontSize: '1.2rem', maxWidth: '500px' }}>
-            A secure ledger operated by Administrators to track the exact location and usage of your donated blood, ensuring complete transparency and peace of mind.
+            A secure ledger operated by Administrators to track the exact location and usage of your donated blood.
           </p>
           
           <div className="flex gap-4">
             {!account ? (
-              <button className="btn btn-primary" onClick={connectWallet}>
-                Connect MetaMask
-              </button>
+              <button className="btn btn-primary" onClick={connectWallet}>Connect MetaMask</button>
             ) : (
               <span className="badge badge-safe p-2">Wallet Connected</span>
             )}
-            <a href="#track" className="btn btn-secondary">Track Your Donation</a>
+            <a href="#track" className="btn btn-secondary">Track Now</a>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="glass-panel" style={{ padding: '2rem' }}>
+        <motion.div 
+          className="glass-panel" 
+          style={{ padding: '2rem' }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
           <h3>Admin Portal Login</h3>
-          <p className="text-secondary mb-4">Secured access for authorized personnel to append ledger data.</p>
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div>
-              <label className="text-secondary" style={{ fontSize: '0.875rem' }}>Admin Password</label>
-              <input 
-                type="password" 
-                className="input-field mt-2" 
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <button type="submit" className="btn btn-primary mt-2 flex justify-center">Access Dashboard</button>
-            <p className="text-muted text-center" style={{ fontSize: '0.75rem' }}>
-              Hint for demo: password is 'admin'
-            </p>
+          <form onSubmit={handleLogin} className="flex flex-col gap-4 mt-4">
+            <input 
+              type="password" 
+              className="input-field" 
+              placeholder="Admin Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button type="submit" className="btn btn-primary">Dashboard</button>
           </form>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Tracking Section */}
-      <div id="track" className="glass-card mt-8 mb-8" style={{ padding: '3rem' }}>
+      <motion.div 
+        id="track" 
+        className="glass-card mt-8 mb-8" 
+        style={{ padding: '3rem' }}
+        initial={{ opacity: 0, y: 100 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 1 }}
+      >
         <div className="text-center mb-8">
-          <h2>Donor Transparency Portal</h2>
-          <p className="text-secondary">Directly query the EVM ledger securely with just your Aadhaar.</p>
+          <h2>Transparency Portal</h2>
+          <p className="text-secondary">Query the EVM ledger with your Aadhaar.</p>
         </div>
         
         <div className="grid grid-cols-2 gap-8">
-          <form onSubmit={handleTrackBlood} className="flex flex-col flex-1 justify-center gap-4">
+          <form onSubmit={handleTrackBlood} className="flex flex-col justify-center gap-4">
             <input 
               className="input-field" 
-              placeholder="Enter your Aadhaar Number to Track" 
+              placeholder="Enter Aadhaar Number" 
               value={searchAadhaar}
               onChange={(e) => setSearchAadhaar(e.target.value)}
               required
             />
             <button type="submit" className="btn btn-blue" disabled={isSearching}>
-              {isSearching ? 'Querying Ledger...' : 'Trace Data on Ledger'}
+              {isSearching ? 'Searching...' : 'Trace Data'}
             </button>
           </form>
 
           {searchResult ? (
-            <div className="glass-panel animate-fade-in" style={{ padding: '1.5rem', background: searchResult.isUsed ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.05)' }}>
+            <motion.div 
+              className="glass-panel" 
+              style={{ padding: '1.5rem', background: searchResult.isUsed ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.05)' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
               <div className="flex justify-between items-center mb-4">
-                <h4>Asset ID: <span className="text-gradient-blue">{searchResult.trackingId}</span></h4>
-                {searchResult.isUsed ? (
-                  <span className="badge badge-unsafe p-1.5 px-3">Status: Consumed/Used</span>
-                ) : (
-                  <span className="badge badge-safe p-1.5 px-3">Status: Active</span>
-                )}
+                <h4>Asset: <span className="text-gradient-blue">{searchResult.trackingId}</span></h4>
+                <span className={`badge ${searchResult.isUsed ? 'badge-unsafe' : 'badge-safe'}`}>
+                  {searchResult.status}
+                </span>
               </div>
-              <div className="flex flex-col gap-3 mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
-                <p><strong>Blood Group:</strong> <span className="text-gradient-red" style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{searchResult.group}</span></p>
-                <p><strong>Current Origin/Holder:</strong> {searchResult.organization}</p>
-                <p className="flex gap-2 items-center"><Search size={16} color="var(--brand-secondary)"/> <strong>Geographic Location:</strong> {searchResult.location}</p>
-                <p className="text-secondary text-sm">Last Block Update Timestamp: {searchResult.timestamp}</p>
+              <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-3">
+                <p><strong>Blood Group:</strong> <span className="text-gradient-red font-bold">{searchResult.group}</span></p>
+                <p><strong>Organization:</strong> {searchResult.organization}</p>
+                <p className="flex items-center gap-2"><Search size={16}/> <strong>Location:</strong> {searchResult.location}</p>
+                <p className="text-secondary text-sm">Last Update: {searchResult.timestamp}</p>
               </div>
-            </div>
+            </motion.div>
           ) : (
-            <div className="flex items-center justify-center flex-col text-muted" style={{ height: '100%', minHeight: '200px' }}>
+            <div className="flex items-center justify-center flex-col text-muted">
               <Search size={48} opacity={0.3} className="mb-4" />
-              <p>Type Identity to automatically resolve Tracking Hash.</p>
+              <p>Results will appear here.</p>
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
 
 const Badge = ({ text, icon }) => (
-  <div style={{ 
-    display: 'inline-flex', padding: '0.5rem 1rem', background: 'rgba(255,255,255,0.05)', 
-    border: '1px solid rgba(255,255,255,0.1)', borderRadius: '99px', fontSize: '0.85rem', 
-    alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' 
-  }}>
+  <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-secondary">
     {icon} {text}
   </div>
 );

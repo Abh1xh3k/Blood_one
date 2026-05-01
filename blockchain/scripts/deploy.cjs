@@ -1,13 +1,25 @@
-const hre = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 
 async function main() {
-  const BloodBank = await hre.ethers.getContractFactory("BloodBank");
-  console.log("Deploying BloodBank...");
-  const bloodBank = await BloodBank.deploy();
+  const [deployer] = await ethers.getSigners();
+  console.log(`Deploying BloodSupplyChain with account: ${deployer.address}`);
 
-  await bloodBank.waitForDeployment();
+  const BloodSupplyChain = await ethers.getContractFactory("BloodSupplyChain");
+  
+  console.log("Deploying Proxy...");
+  const bloodSupplyChain = await upgrades.deployProxy(BloodSupplyChain, [deployer.address], {
+    initializer: "initialize",
+    kind: "uups",
+  });
 
-  console.log(`BloodBank contract deployed to: ${await bloodBank.getAddress()}`);
+  await bloodSupplyChain.waitForDeployment();
+
+  const proxyAddress = await bloodSupplyChain.getAddress();
+  console.log(`BloodSupplyChain Proxy deployed to: ${proxyAddress}`);
+  
+  // To get the implementation address
+  // const implementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+  // console.log(`Implementation deployed to: ${implementationAddress}`);
 }
 
 main().catch((error) => {

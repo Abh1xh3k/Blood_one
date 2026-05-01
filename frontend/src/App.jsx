@@ -4,6 +4,9 @@ import { useAuth } from './contexts/AuthContext';
 import Landing from './pages/Landing';
 import AdminDashboard from './pages/AdminDashboard';
 
+import { Toaster } from 'react-hot-toast';
+import InteractiveBackground from './components/InteractiveBackground';
+
 // Mock simple navbar
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -41,6 +44,15 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <Router>
+      <InteractiveBackground />
+      <Toaster position="top-right" toastOptions={{
+        style: {
+          background: 'rgba(20, 20, 20, 0.9)',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(10px)',
+        },
+      }} />
       <Navbar />
       <div className="main-content">
         <Routes>

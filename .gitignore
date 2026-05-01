@@ -1,0 +1,28 @@
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Hardhat artifacts and cache
+blockchain/artifacts/
+blockchain/cache/
+
+# Environment variables
+.env
+**/.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+**/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Hardhat coverage
+coverage/
+coverage.json
+
+# Hardhat gas reporter
+gasReporter.json
