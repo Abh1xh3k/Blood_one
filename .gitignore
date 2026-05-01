@@ -5,6 +5,7 @@ node_modules/
 # Hardhat artifacts and cache
 blockchain/artifacts/
 blockchain/cache/
+blockchain/node_modules
 
 # Environment variables
 .env
